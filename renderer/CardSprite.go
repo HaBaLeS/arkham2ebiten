@@ -3,7 +3,10 @@ package renderer
 import (
 	"github.com/HaBaLeS/arkham-go/card"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"golang.org/x/exp/shiny/materialdesign/colornames"
 	"image"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -33,11 +36,11 @@ func NewCardSprite(card card.ArkhamCard) *CardSprite {
 func (cs *CardSprite) addFront(file string) {
 	fh, err := os.Open(path.Join("../data/leech-img2/", file))
 	if err != nil {
-		panic(err)
+		log.Panicf("Could not load: %s. error:%s", file, err)
 	}
 	i, _, err := image.Decode(fh)
 	if err != nil {
-		panic(err)
+		log.Panicf("Could not load: %s. error:%s", file, err)
 	}
 	cs.drawable = ebiten.NewImageFromImage(i)
 
@@ -47,13 +50,16 @@ func (cs *CardSprite) addFront(file string) {
 }
 
 func (cs *CardSprite) addBack(file string) {
+	if file == "" {
+		return
+	}
 	fh, err := os.Open(path.Join("../data/leech-img2/", file))
 	if err != nil {
-		panic(err)
+		log.Panicf("Could not load: %s. error:%s", file, err)
 	}
 	i, _, err := image.Decode(fh)
 	if err != nil {
-		panic(err)
+		log.Panicf("Could not load: %s. error:%s", file, err)
 	}
 	cs.drawableBack = ebiten.NewImageFromImage(i)
 }
@@ -78,16 +84,25 @@ func (cs *CardSprite) Draw(screen *ebiten.Image) {
 	op.Filter = ebiten.FilterLinear
 
 	if cs.card.Base().Flipped {
-		screen.DrawImage(cs.drawable, op)
-	} else {
 		screen.DrawImage(cs.drawableBack, op)
+	} else {
+		screen.DrawImage(cs.drawable, op)
+	}
+
+	if cs.card.CardType() == card.LocationType {
+		loc := card.AcAsLocation(cs.card)
+		if loc.ActiveClueTokens > 0 {
+			for i := 0; i < loc.ActiveClueTokens; i++ {
+				ebitenutil.DrawRect(screen, cs.X+60*float64(i)+30, cs.Y+cs.height-100, 50, 50, colornames.LightGreenA700)
+			}
+		}
 	}
 }
 
 func (cs *CardSprite) init() {
 	cs.addFront(cs.card.Base().Image)
 	cs.addBack(cs.card.Base().BackImage)
-	cs.enabled = true
+	cs.enabled = false
 	cs.Greyout = false
 	cs.Scale = 1
 }
@@ -102,4 +117,12 @@ func (cs *CardSprite) Contains(x, y float64) bool {
 
 func (cs *CardSprite) Card() card.ArkhamCard {
 	return cs.card
+}
+
+func (cs *CardSprite) Enable() {
+	cs.enabled = true
+}
+
+func (cs *CardSprite) Disable() {
+	cs.enabled = false
 }

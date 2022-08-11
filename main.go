@@ -3,6 +3,7 @@ package main
 import (
 	"ebiten2arkham/renderer"
 	"fmt"
+	"github.com/HaBaLeS/arkham-go/command"
 	arkham_game "github.com/HaBaLeS/arkham-go/modules/arkham-game"
 	"github.com/HaBaLeS/arkham-go/modules/gpbge"
 	"github.com/HaBaLeS/arkham-go/runtime"
@@ -20,11 +21,20 @@ var CARDS_JSON = "../data/all_pretty.json"
 type Game struct {
 	engine *gpbge.PhaseEngine
 	//scn         *runtime.Scenario
-	cardSprites []*renderer.CardSprite
-	guiSprites  []*renderer.GuiSprite
+	cardSprites  []*renderer.CardSprite
+	guiSprites   []*renderer.GuiSprite
+	commandQueue chan command.GuiCommand
 }
 
 func (g *Game) Update() error {
+
+	select {
+	case cmd := <-g.commandQueue:
+		log.Printf("Received Command: %v", cmd)
+	default:
+		//do nothing for unblocking the command
+	}
+
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		os.Exit(0)
 	}
@@ -58,13 +68,13 @@ func (g *Game) Update() error {
 }
 
 func fireEventButtonClicked(cs *renderer.GuiSprite) {
-	log.Printf("Button Cliecked: %s", cs.Id)
+	log.Printf("Button click: %s", cs.Id)
 	cs.OnClickFunc()
 	cs.Disable()
 }
 
 func fireEventCardClicked(cs *renderer.CardSprite) {
-	log.Printf("Card Clicked: (%s): %s", cs.Card().CardCode(), cs.Card().Base().Name)
+	log.Printf("Card click: (%s): %s", cs.Card().CardCode(), cs.Card().Base().Name)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -87,7 +97,8 @@ func (g *Game) Layout(ow, oh int) (sh, sw int) {
 
 func main() {
 
-	game := initGame()
+	game := &Game{}
+	game.init()
 
 	ebiten.SetWindowTitle("Arkham-go")
 	ebiten.SetFullscreen(true)
@@ -97,12 +108,13 @@ func main() {
 	}
 }
 
-func initGame() *Game {
+func (g *Game) init() {
 
 	//Create Game
-	game := &Game{}
-	game.cardSprites = make([]*renderer.CardSprite, 0)
-	game.guiSprites = make([]*renderer.GuiSprite, 0)
+	g.commandQueue = make(chan command.GuiCommand, 100)
+
+	g.cardSprites = make([]*renderer.CardSprite, 0)
+	g.guiSprites = make([]*renderer.GuiSprite, 0)
 
 	//Load CardDB
 	db := runtime.NewCardDB()
@@ -113,40 +125,67 @@ func initGame() *Game {
 
 	//Create Scenario
 	scnData := runtime.GetFirstScenarioData(db)
-	game.engine = arkham_game.BuildArkhamGame(scnData)
+	g.engine = arkham_game.BuildArkhamGame(scnData, g.commandQueue)
+
+	//Add players
+	d1, err := runtime.LoadPlayerDeckFromFile("../data/decks/deck1.txt", db)
+	if err != nil {
+		panic(err)
+	}
+	d2, err := runtime.LoadPlayerDeckFromFile("../data/decks/deck2.txt", db)
+	if err != nil {
+		panic(err)
+	}
+	g.engine.AddPlayer(d1)
+	g.engine.AddPlayer(d2)
+
+	//fixme load all ressouces
+	// scenario, player, deck etc
+	g.InitCardSpritesForDeck(d1)
+	g.InitCardSpritesForDeck(d2)
 
 	//Start Game loop (async -- waits for user input)
-	go game.engine.Start()
+	go g.engine.Start()
 
 	//Render Setup after here
 	oneCard := renderer.NewCardSprite(scnData.StartLocation)
 	oneCard.X = 1920/2 - 300/2
 	oneCard.Y = 1080/2 - 419/2
-
-	act := renderer.NewCardSprite(scnData.CurrentAct)
-	agenda := renderer.NewCardSprite(scnData.CurrentAgenda)
+	oneCard.Card().Base().Flipped = true
+	oneCard.Enable()
 
 	scale := 0.4
 
+	act := renderer.NewCardSprite(scnData.CurrentAct)
 	act.X = 1920 - 419*scale
 	act.Y = 5
-	act.Card().Base().Flipped = true
 	act.Scale = scale
+	act.Enable()
 
+	agenda := renderer.NewCardSprite(scnData.CurrentAgenda)
 	agenda.X = 1920 - 419*2*scale
 	agenda.Y = 5
-	agenda.Card().Base().Flipped = true
 	agenda.Scale = scale
+	agenda.Enable()
 
-	game.cardSprites = append(game.cardSprites, oneCard, agenda, act)
+	g.cardSprites = append(g.cardSprites, oneCard, agenda, act)
 
 	btn := renderer.NewGuiSprite("testButton", "button.png")
 	btn.X = 500
 	btn.Y = 500 + 425
-	btn.OnClickFunc = game.engine.GameStart.Callback //magic trick, bring the callback function form extern
-	game.guiSprites = append(game.guiSprites, btn)
+	btn.OnClickFunc = g.engine.GameStart.Callback //magic trick, bring the callback function form extern
+	g.guiSprites = append(g.guiSprites, btn)
 
-	return game
+}
+
+func (g *Game) InitCardSpritesForDeck(deck *runtime.PlayerDeck) {
+	sprite := renderer.NewCardSprite(deck.Investigator)
+	g.cardSprites = append(g.cardSprites, sprite)
+
+	for _, v := range deck.Cards {
+		sprite := renderer.NewCardSprite(v)
+		g.cardSprites = append(g.cardSprites, sprite)
+	}
 }
 
 /*
