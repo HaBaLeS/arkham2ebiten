@@ -23,6 +23,7 @@ type CardSprite struct {
 	height       float64
 	Greyout      bool
 	Scale        float64
+	SubImage     image.Rectangle
 }
 
 func NewCardSprite(card card.ArkhamCard) *CardSprite {
@@ -81,14 +82,18 @@ func (cs *CardSprite) Draw(screen *ebiten.Image) {
 		op.ColorM.ChangeHSV(1, 0.5, 1)
 	}
 
-	op.Filter = ebiten.FilterLinear
+	op.Filter = ebiten.FilterLinear //filter linear always ... this is better for readability
 
-	if cs.card.Base().Flipped {
-		screen.DrawImage(cs.drawableBack, op)
-	} else {
-		screen.DrawImage(cs.drawable, op)
+	toDraw := cs.drawable
+	if cs.SubImage.Max.X != 0 {
+		si := toDraw.SubImage(cs.SubImage)
+		toDraw = ebiten.NewImageFromImage(si)
+	} else if cs.card.Base().Flipped {
+		toDraw = cs.drawableBack
 	}
+	screen.DrawImage(toDraw, op)
 
+	//Fixme add  to extra render thing !? .. or not ?
 	if cs.card.CardType() == card.LocationType {
 		loc := card.AcAsLocation(cs.card)
 		if loc.ActiveClueTokens > 0 {
@@ -107,7 +112,7 @@ func (cs *CardSprite) init() {
 	cs.Scale = 1
 }
 
-// If you implement small cards (scalled down) or zoom or similar, make sure you update the collision detection too
+// If you implement small cards (scaled down) or zoom or similar, make sure you update the collision detection too
 func (cs *CardSprite) Contains(x, y float64) bool {
 	if x > cs.X && x < cs.X+cs.width*cs.Scale && y > cs.Y && y < cs.Y+cs.height*cs.Scale {
 		return true

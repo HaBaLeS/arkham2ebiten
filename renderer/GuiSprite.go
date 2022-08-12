@@ -68,7 +68,7 @@ func (cs *GuiSprite) Draw(screen *ebiten.Image) {
 }
 
 func (cs *GuiSprite) init() {
-	cs.enabled = true
+	cs.enabled = false
 	cs.Greyout = false
 	cs.Scale = 1
 }
@@ -86,4 +86,24 @@ func (cs *GuiSprite) Contains(x, y float64) bool {
 
 func (cs *GuiSprite) Disable() {
 	cs.enabled = false
+}
+
+func (cs *GuiSprite) Enable() {
+	cs.enabled = true
+}
+
+func LoadGuiSprites() []*GuiSprite {
+	retList := make([]*GuiSprite, 0)
+	retList = append(retList,
+		NewGuiSprite("testButton", "button.png"),
+		NewGuiSprite("draw_card", "draw_card.png"),
+		NewGuiSprite("engage", "engage.png"),
+		NewGuiSprite("escape", "engage.png"),
+		NewGuiSprite("fight", "fight.png"),
+		NewGuiSprite("investigate", "investigate.png"),
+		NewGuiSprite("move", "move.png"),
+		NewGuiSprite("play_card", "button.png"),
+		NewGuiSprite("resource", "resource.png"))
+
+	return retList
 }

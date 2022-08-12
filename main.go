@@ -4,8 +4,7 @@ import (
 	"ebiten2arkham/renderer"
 	"fmt"
 	"github.com/HaBaLeS/arkham-go/command"
-	arkham_game "github.com/HaBaLeS/arkham-go/modules/arkham-game"
-	"github.com/HaBaLeS/arkham-go/modules/gpbge"
+	"github.com/HaBaLeS/arkham-go/engine"
 	"github.com/HaBaLeS/arkham-go/runtime"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -19,7 +18,6 @@ import (
 var CARDS_JSON = "../data/all_pretty.json"
 
 type Game struct {
-	engine *gpbge.PhaseEngine
 	//scn         *runtime.Scenario
 	cardSprites  []*renderer.CardSprite
 	guiSprites   []*renderer.GuiSprite
@@ -30,7 +28,7 @@ func (g *Game) Update() error {
 
 	select {
 	case cmd := <-g.commandQueue:
-		log.Printf("Received Command: %v", cmd)
+		g.handleCommand(cmd)
 	default:
 		//do nothing for unblocking the command
 	}
@@ -113,42 +111,23 @@ func (g *Game) init() {
 	//Create Game
 	g.commandQueue = make(chan command.GuiCommand, 100)
 
+	runtime.Init(g.commandQueue)
+
 	g.cardSprites = make([]*renderer.CardSprite, 0)
 	g.guiSprites = make([]*renderer.GuiSprite, 0)
 
-	//Load CardDB
-	db := runtime.NewCardDB()
-	err := db.Init(CARDS_JSON)
-	if err != nil {
-		panic(err)
-	}
-
-	//Create Scenario
-	scnData := runtime.GetFirstScenarioData(db)
-	g.engine = arkham_game.BuildArkhamGame(scnData, g.commandQueue)
-
-	//Add players
-	d1, err := runtime.LoadPlayerDeckFromFile("../data/decks/deck1.txt", db)
-	if err != nil {
-		panic(err)
-	}
-	d2, err := runtime.LoadPlayerDeckFromFile("../data/decks/deck2.txt", db)
-	if err != nil {
-		panic(err)
-	}
-	g.engine.AddPlayer(d1)
-	g.engine.AddPlayer(d2)
-
 	//fixme load all ressouces
 	// scenario, player, deck etc
-	g.InitCardSpritesForDeck(d1)
-	g.InitCardSpritesForDeck(d2)
+	for _, p := range runtime.ScenarioSession().Player {
+		g.InitCardSpritesForDeck(p)
+	}
 
 	//Start Game loop (async -- waits for user input)
-	go g.engine.Start()
+	engine := engine.BuildArkhamGame()
+	go engine.Start()
 
 	//Render Setup after here
-	oneCard := renderer.NewCardSprite(scnData.StartLocation)
+	oneCard := renderer.NewCardSprite(runtime.ScenarioSession().StartLocation)
 	oneCard.X = 1920/2 - 300/2
 	oneCard.Y = 1080/2 - 419/2
 	oneCard.Card().Base().Flipped = true
@@ -156,13 +135,13 @@ func (g *Game) init() {
 
 	scale := 0.4
 
-	act := renderer.NewCardSprite(scnData.CurrentAct)
+	act := renderer.NewCardSprite(runtime.ScenarioSession().CurrentAct)
 	act.X = 1920 - 419*scale
 	act.Y = 5
 	act.Scale = scale
 	act.Enable()
 
-	agenda := renderer.NewCardSprite(scnData.CurrentAgenda)
+	agenda := renderer.NewCardSprite(runtime.ScenarioSession().CurrentAgenda)
 	agenda.X = 1920 - 419*2*scale
 	agenda.Y = 5
 	agenda.Scale = scale
@@ -170,11 +149,14 @@ func (g *Game) init() {
 
 	g.cardSprites = append(g.cardSprites, oneCard, agenda, act)
 
-	btn := renderer.NewGuiSprite("testButton", "button.png")
-	btn.X = 500
-	btn.Y = 500 + 425
-	btn.OnClickFunc = g.engine.GameStart.Callback //magic trick, bring the callback function form extern
-	g.guiSprites = append(g.guiSprites, btn)
+	//btn.OnClickFunc = engine.GameStart.Callback //magic trick, bring the callback function form extern
+	g.guiSprites = renderer.LoadGuiSprites() //append(g.guiSprites, btn)
+
+	startButton := g.getGui("testButton")
+	startButton.OnClickFunc = engine.GameStart.Callback
+	startButton.Enable()
+	startButton.X = 1920/2 - 100
+	startButton.Y = 1080/2 + 419/2 + 5
 
 }
 
@@ -201,3 +183,61 @@ lol
  We need a Zoom in Card ting
 
 */
+
+func (g *Game) handleCommand(cmd command.GuiCommand) {
+	switch x := cmd.(type) {
+	case *command.InfoCommand:
+		log.Printf("Reveiced: Info: %v", cmd)
+	case *command.PlayCardCommand:
+		log.Printf("Reveiced: PlayCardCommand: %v", cmd)
+		g.playCard(x)
+	case *command.EnableCommand:
+		g.enable(x.What)
+	default:
+		log.Panicf("Unknown GioCommand %v", cmd)
+	}
+}
+
+func (g *Game) playCard(cmd *command.PlayCardCommand) {
+	s := g.getCardSprite(cmd.CardToPlay)
+	s.Enable()
+	if cmd.Scale != 0 {
+		s.Scale = cmd.Scale
+	}
+	if cmd.X != 0 {
+		s.X = cmd.X
+	}
+	if cmd.Y != 0 {
+		s.Y = cmd.Y
+	}
+	if cmd.SubImage.Max.X != 0 {
+		s.SubImage = cmd.SubImage
+	}
+}
+
+func (g *Game) getCardSprite(ccode string) *renderer.CardSprite {
+	for _, v := range g.cardSprites {
+		if v.Card().CardCode() == ccode {
+			return v
+		}
+	}
+	return nil
+}
+
+func (g *Game) getGui(s string) *renderer.GuiSprite {
+	for _, v := range g.guiSprites {
+		if v.Id == s {
+			return v
+		}
+	}
+	return nil
+}
+
+func (g *Game) enable(what string) {
+	switch what {
+	case "investigator_gui":
+		log.Panicf("Implement me ")
+	default:
+		log.Panicf("Do not know what to enable: %s", what)
+	}
+}
