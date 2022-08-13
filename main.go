@@ -19,9 +19,10 @@ var CARDS_JSON = "../data/all_pretty.json"
 
 type Game struct {
 	//scn         *runtime.Scenario
-	cardSprites  []*renderer.CardSprite
-	guiSprites   []*renderer.GuiSprite
-	commandQueue chan command.GuiCommand
+	cardSprites     []*renderer.CardSprite
+	guiSprites      []*renderer.GuiSprite
+	commandQueue    chan command.GuiCommand
+	investigatorGui *renderer.InvestigatorGui
 }
 
 func (g *Game) Update() error {
@@ -68,7 +69,7 @@ func (g *Game) Update() error {
 func fireEventButtonClicked(cs *renderer.GuiSprite) {
 	log.Printf("Button click: %s", cs.Id)
 	cs.OnClickFunc()
-	cs.Disable()
+	cs.Disable() //fixme this was only for the first button, no the investigator GUi is disapearing
 }
 
 func fireEventCardClicked(cs *renderer.CardSprite) {
@@ -150,13 +151,18 @@ func (g *Game) init() {
 	g.cardSprites = append(g.cardSprites, oneCard, agenda, act)
 
 	//btn.OnClickFunc = engine.GameStart.Callback //magic trick, bring the callback function form extern
-	g.guiSprites = renderer.LoadGuiSprites() //append(g.guiSprites, btn)
+	btn := renderer.NewGuiSprite("testButton", "button.png")
+	g.guiSprites = append(g.guiSprites, btn)
 
 	startButton := g.getGui("testButton")
 	startButton.OnClickFunc = engine.GameStart.Callback
 	startButton.Enable()
 	startButton.X = 1920/2 - 100
 	startButton.Y = 1080/2 + 419/2 + 5
+
+	//Load investigation Phase GUI
+	g.investigatorGui = &renderer.InvestigatorGui{}
+	g.guiSprites = append(g.guiSprites, g.investigatorGui.LoadGuiSprites()...)
 
 }
 
@@ -236,7 +242,7 @@ func (g *Game) getGui(s string) *renderer.GuiSprite {
 func (g *Game) enable(what string) {
 	switch what {
 	case "investigator_gui":
-		log.Panicf("Implement me ")
+		g.investigatorGui.Enable()
 	default:
 		log.Panicf("Do not know what to enable: %s", what)
 	}

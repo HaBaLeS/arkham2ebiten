@@ -91,19 +91,3 @@ func (cs *GuiSprite) Disable() {
 func (cs *GuiSprite) Enable() {
 	cs.enabled = true
 }
-
-func LoadGuiSprites() []*GuiSprite {
-	retList := make([]*GuiSprite, 0)
-	retList = append(retList,
-		NewGuiSprite("testButton", "button.png"),
-		NewGuiSprite("draw_card", "draw_card.png"),
-		NewGuiSprite("engage", "engage.png"),
-		NewGuiSprite("escape", "engage.png"),
-		NewGuiSprite("fight", "fight.png"),
-		NewGuiSprite("investigate", "investigate.png"),
-		NewGuiSprite("move", "move.png"),
-		NewGuiSprite("play_card", "button.png"),
-		NewGuiSprite("resource", "resource.png"))
-
-	return retList
-}
