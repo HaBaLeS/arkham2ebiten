@@ -23,10 +23,12 @@ type Game struct {
 	guiSprites      []*renderer.GuiSprite
 	commandQueue    chan command.GuiCommand
 	investigatorGui *renderer.InvestigatorGui
+	shader          *ebiten.Shader
+	fc              float64
 }
 
 func (g *Game) Update() error {
-
+	g.fc++
 	select {
 	case cmd := <-g.commandQueue:
 		g.handleCommand(cmd)
@@ -69,7 +71,6 @@ func (g *Game) Update() error {
 func fireEventButtonClicked(cs *renderer.GuiSprite) {
 	log.Printf("Button click: %s", cs.Id)
 	cs.OnClickFunc()
-	cs.Disable() //fixme this was only for the first button, no the investigator GUi is disapearing
 }
 
 func fireEventCardClicked(cs *renderer.CardSprite) {
@@ -77,16 +78,28 @@ func fireEventCardClicked(cs *renderer.CardSprite) {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	screen.Clear()
 	for _, cs := range g.cardSprites {
 		cs.Draw(screen)
 	}
 
+	/*	w, h := screen.Size()
+		cx, cy := ebiten.CursorPosition()
+
+		op := &ebiten.DrawRectShaderOptions{}
+		op.Uniforms = map[string]interface{}{
+			"Time":       float32(g.fc) / 60,
+			"Cursor":     []float32{float32(cx), float32(cy)},
+			"ScreenSize": []float32{float32(w), float32(h)},
+		}
+
+		screen.DrawRectShader(1920, 1080, g.shader, op)*/
 	for _, gs := range g.guiSprites {
 		gs.Draw(screen)
 	}
 
 	mx, my := ebiten.CursorPosition()
-	out := fmt.Sprintf("Mouse: %f, %f", float64(mx), float64(my))
+	out := fmt.Sprintf("Mouse: %f, %f\n In: %f", float64(mx), float64(my), g.fc)
 	ebitenutil.DebugPrint(screen, out)
 }
 
@@ -164,6 +177,8 @@ func (g *Game) init() {
 	g.investigatorGui = &renderer.InvestigatorGui{}
 	g.guiSprites = append(g.guiSprites, g.investigatorGui.LoadGuiSprites()...)
 
+	g.shader = renderer.GetShader()
+
 }
 
 func (g *Game) InitCardSpritesForDeck(deck *runtime.PlayerDeck) {
@@ -199,8 +214,11 @@ func (g *Game) handleCommand(cmd command.GuiCommand) {
 		g.playCard(x)
 	case *command.EnableCommand:
 		g.enable(x.What)
+	case *command.DisableCommand:
+		g.disable(x.What)
 	default:
-		log.Panicf("Unknown GioCommand %v", cmd)
+		//Did you use a pointer when sending the command?
+		log.Panicf("Unknown GuiCommand %v, %t", cmd, cmd)
 	}
 }
 
@@ -230,6 +248,15 @@ func (g *Game) getCardSprite(ccode string) *renderer.CardSprite {
 	return nil
 }
 
+func (g *Game) getGuiSprite(id string) *renderer.GuiSprite {
+	for _, v := range g.guiSprites {
+		if v.Id == id {
+			return v
+		}
+	}
+	return nil
+}
+
 func (g *Game) getGui(s string) *renderer.GuiSprite {
 	for _, v := range g.guiSprites {
 		if v.Id == s {
@@ -246,4 +273,8 @@ func (g *Game) enable(what string) {
 	default:
 		log.Panicf("Do not know what to enable: %s", what)
 	}
+}
+
+func (g *Game) disable(what string) {
+	g.getGuiSprite(what).Disable()
 }

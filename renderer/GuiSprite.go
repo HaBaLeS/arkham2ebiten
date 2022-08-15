@@ -1,8 +1,11 @@
 package renderer
 
 import (
+	"github.com/HaBaLeS/arkham-go/command"
+	"github.com/HaBaLeS/arkham-go/runtime"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
+	"log"
 	"os"
 	"path"
 )
@@ -90,4 +93,20 @@ func (cs *GuiSprite) Disable() {
 
 func (cs *GuiSprite) Enable() {
 	cs.enabled = true
+}
+
+func (cs *GuiSprite) onClickFuncDummy() {
+	//fixme send command -> Gui which action was pressed
+	//Engine should reduce number of possible actions
+	//engine should send a disable gui after the numer == 0
+
+	if cs.Id == "investigate" {
+		command.SendEngineCommand(command.DoInvestigate{
+			Investigator: runtime.ScenarioSession().CurrentPlayer.Investigator.CCode,
+			Location:     runtime.ScenarioSession().CurrentPlayer.Investigator.CurrentLocation,
+		})
+	} else {
+		log.Printf("No implementation for GUI click: %s", cs.Id)
+	}
+
 }
