@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ebiten2arkham/gui"
 	"ebiten2arkham/renderer"
 	"fmt"
 	"github.com/HaBaLeS/arkham-go/command"
@@ -18,13 +19,17 @@ import (
 var CARDS_JSON = "../data/all_pretty.json"
 
 type Game struct {
-	//scn         *runtime.Scenario
+
+	//things that update and Draw
 	cardSprites     []*renderer.CardSprite
 	guiSprites      []*renderer.GuiSprite
-	commandQueue    chan command.GuiCommand
+	dialog          *gui.Dialog
+	agendaAndAct    *gui.AgendaAndAct
 	investigatorGui *renderer.InvestigatorGui
-	shader          *ebiten.Shader
-	fc              float64
+
+	commandQueue chan command.GuiCommand
+	shader       *ebiten.Shader
+	fc           float64
 }
 
 func (g *Game) Update() error {
@@ -40,12 +45,20 @@ func (g *Game) Update() error {
 		os.Exit(0)
 	}
 	mx, my := ebiten.CursorPosition()
+	clicked := inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft)
 	inputConsumed := false
+
+	if g.dialog != nil {
+		inputConsumed = true
+		g.dialog.Update()
+	}
+
+	g.agendaAndAct.Update(float64(mx), float64(my), clicked)
 	for _, cs := range g.guiSprites {
 		if cs.Contains(float64(mx), float64(my)) && !inputConsumed {
 			cs.Greyout = true
 			inputConsumed = true
-			if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+			if clicked {
 				fireEventButtonClicked(cs)
 			}
 		} else {
@@ -58,13 +71,14 @@ func (g *Game) Update() error {
 		if cs.Contains(float64(mx), float64(my)) && !inputConsumed {
 			cs.Greyout = true
 			inputConsumed = true
-			if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+			if clicked {
 				fireEventCardClicked(cs)
 			}
 		} else {
 			cs.Greyout = false
 		}
 	}
+
 	return nil
 }
 
@@ -83,19 +97,24 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		cs.Draw(screen)
 	}
 
-	/*	w, h := screen.Size()
-		cx, cy := ebiten.CursorPosition()
+	w, h := screen.Size()
+	cx, cy := ebiten.CursorPosition()
 
-		op := &ebiten.DrawRectShaderOptions{}
-		op.Uniforms = map[string]interface{}{
-			"Time":       float32(g.fc) / 60,
-			"Cursor":     []float32{float32(cx), float32(cy)},
-			"ScreenSize": []float32{float32(w), float32(h)},
-		}
+	op := &ebiten.DrawRectShaderOptions{}
+	op.Uniforms = map[string]interface{}{
+		"Time":       float32(g.fc) / 60,
+		"Cursor":     []float32{float32(cx), float32(cy)},
+		"ScreenSize": []float32{float32(w), float32(h)},
+	}
 
-		screen.DrawRectShader(1920, 1080, g.shader, op)*/
+	g.agendaAndAct.Draw(screen)
 	for _, gs := range g.guiSprites {
 		gs.Draw(screen)
+	}
+
+	if g.dialog != nil {
+		screen.DrawRectShader(1920, 1080, g.shader, op)
+		g.dialog.Draw(screen)
 	}
 
 	mx, my := ebiten.CursorPosition()
@@ -109,11 +128,15 @@ func (g *Game) Layout(ow, oh int) (sh, sw int) {
 
 func main() {
 
+	gui.InitFonts()
+
 	game := &Game{}
 	game.init()
 
 	ebiten.SetWindowTitle("Arkham-go")
-	ebiten.SetFullscreen(true)
+	ebiten.SetFullscreen(false)
+	ebiten.SetWindowSize(1920, 1080)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeDisabled)
 
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)
@@ -147,31 +170,7 @@ func (g *Game) init() {
 	oneCard.Card().Base().Flipped = true
 	oneCard.Enable()
 
-	scale := 0.4
-
-	act := renderer.NewCardSprite(runtime.ScenarioSession().CurrentAct)
-	act.X = 1920 - 419*scale
-	act.Y = 5
-	act.Scale = scale
-	act.Enable()
-
-	agenda := renderer.NewCardSprite(runtime.ScenarioSession().CurrentAgenda)
-	agenda.X = 1920 - 419*2*scale
-	agenda.Y = 5
-	agenda.Scale = scale
-	agenda.Enable()
-
-	g.cardSprites = append(g.cardSprites, oneCard, agenda, act)
-
-	//btn.OnClickFunc = engine.GameStart.Callback //magic trick, bring the callback function form extern
-	btn := renderer.NewGuiSprite("testButton", "button.png")
-	g.guiSprites = append(g.guiSprites, btn)
-
-	startButton := g.getGui("testButton")
-	startButton.OnClickFunc = engine.GameStart.Callback
-	startButton.Enable()
-	startButton.X = 1920/2 - 100
-	startButton.Y = 1080/2 + 419/2 + 5
+	g.cardSprites = append(g.cardSprites, oneCard)
 
 	//Load investigation Phase GUI
 	g.investigatorGui = &renderer.InvestigatorGui{}
@@ -179,6 +178,7 @@ func (g *Game) init() {
 
 	g.shader = renderer.GetShader()
 
+	g.agendaAndAct = gui.NewAgendaAndAct()
 }
 
 func (g *Game) InitCardSpritesForDeck(deck *runtime.PlayerDeck) {
@@ -216,6 +216,12 @@ func (g *Game) handleCommand(cmd command.GuiCommand) {
 		g.enable(x.What)
 	case *command.DisableCommand:
 		g.disable(x.What)
+	case *command.DecisionDialog:
+		g.showDialog(x)
+	case *command.RemoveDialog:
+		g.removeDialog()
+	case *command.ShowCardDialog:
+		g.showCardDialog(x)
 	default:
 		//Did you use a pointer when sending the command?
 		log.Panicf("Unknown GuiCommand %v, %t", cmd, cmd)
@@ -276,5 +282,22 @@ func (g *Game) enable(what string) {
 }
 
 func (g *Game) disable(what string) {
-	g.getGuiSprite(what).Disable()
+	g.getGuiSprite(what).Hidden()
+}
+
+func (g *Game) showDialog(x *command.DecisionDialog) {
+	//disable all Inputhandling but the dialog
+
+	//show grey out overlay
+
+	g.dialog = gui.NewDialog(x.Question, x.Options)
+
+}
+
+func (g *Game) removeDialog() {
+	g.dialog = nil
+}
+
+func (g *Game) showCardDialog(x *command.ShowCardDialog) {
+	g.dialog = gui.NewCardDialog(x.CardCode, x.ButtonText, x.Front)
 }

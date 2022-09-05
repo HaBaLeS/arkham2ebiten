@@ -13,6 +13,7 @@ import (
 type GuiSprite struct {
 	Id           string
 	enabled      bool
+	active       bool
 	X, Y         float64
 	rotation     float64
 	drawable     *ebiten.Image
@@ -64,6 +65,10 @@ func (cs *GuiSprite) Draw(screen *ebiten.Image) {
 		op.ColorM.ChangeHSV(1, 1.5, 1)
 	}
 
+	if !cs.active {
+		op.ColorM.ChangeHSV(1, 0.2, 1)
+	}
+
 	op.Filter = ebiten.FilterLinear
 
 	screen.DrawImage(cs.drawable, op)
@@ -73,12 +78,13 @@ func (cs *GuiSprite) Draw(screen *ebiten.Image) {
 func (cs *GuiSprite) init() {
 	cs.enabled = false
 	cs.Greyout = false
+	cs.active = true
 	cs.Scale = 1
 }
 
 // If you implement small cards (scalled down) or zoom or similar, make sure you update the collision detection too
 func (cs *GuiSprite) Contains(x, y float64) bool {
-	if !cs.enabled {
+	if !cs.enabled || !cs.active {
 		return false
 	}
 	if x > cs.X && x < cs.X+cs.width*cs.Scale && y > cs.Y && y < cs.Y+cs.height*cs.Scale {
@@ -87,12 +93,20 @@ func (cs *GuiSprite) Contains(x, y float64) bool {
 	return false
 }
 
-func (cs *GuiSprite) Disable() {
+func (cs *GuiSprite) Hidden() {
 	cs.enabled = false
 }
 
-func (cs *GuiSprite) Enable() {
+func (cs *GuiSprite) Visible() {
 	cs.enabled = true
+}
+
+func (cs *GuiSprite) Inactive() {
+	cs.active = false
+}
+
+func (cs *GuiSprite) Active() {
+	cs.active = true
 }
 
 func (cs *GuiSprite) onClickFuncDummy() {
@@ -101,7 +115,7 @@ func (cs *GuiSprite) onClickFuncDummy() {
 	//engine should send a disable gui after the numer == 0
 
 	if cs.Id == "investigate" {
-		command.SendEngineCommand(command.DoInvestigate{
+		command.SendEngineCommand(&command.DoInvestigate{
 			Investigator: runtime.ScenarioSession().CurrentPlayer.Investigator.CCode,
 			Location:     runtime.ScenarioSession().CurrentPlayer.Investigator.CurrentLocation,
 		})

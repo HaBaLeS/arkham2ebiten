@@ -11,6 +11,15 @@ type InvestigatorGui struct {
 	resource    *GuiSprite
 }
 
+func (ig *InvestigatorGui) Update() {
+
+	//check if active -- aka you can click it
+
+	//activePlayer := runtime.ScenarioSession().CurrentPlayer
+	//activePlayer.Location -> Clues > 0
+
+}
+
 func (ig *InvestigatorGui) LoadGuiSprites() []*GuiSprite {
 
 	ig.drawCard = NewGuiSprite("draw_card", "draw_card.png")
@@ -60,12 +69,21 @@ func (ig *InvestigatorGui) LoadGuiSprites() []*GuiSprite {
 }
 
 func (ig *InvestigatorGui) Enable() {
-	ig.drawCard.Enable()
-	ig.engage.Enable()
-	ig.escape.Enable()
-	ig.fight.Enable()
-	ig.investigate.Enable()
-	ig.move.Enable()
-	ig.playCard.Enable()
-	ig.resource.Enable()
+	ig.drawCard.Visible()
+	ig.drawCard.Active()
+
+	ig.engage.Visible()
+	ig.engage.Inactive()
+	ig.escape.Visible()
+	ig.escape.Inactive()
+	ig.fight.Visible()
+	ig.fight.Inactive()
+	ig.investigate.Visible()
+	ig.investigate.Visible()
+	ig.move.Visible()
+	ig.move.Inactive()
+	ig.playCard.Visible()
+	ig.playCard.Active()
+	ig.resource.Visible()
+	ig.resource.Active()
 }
