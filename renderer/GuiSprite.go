@@ -3,10 +3,10 @@ package renderer
 import (
 	"github.com/HaBaLeS/arkham-go/command"
 	"github.com/HaBaLeS/arkham-go/runtime"
+	"github.com/HaBaLeS/arkhamassets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"log"
-	"os"
 	"path"
 )
 
@@ -37,7 +37,7 @@ func NewGuiSprite(id, file string) *GuiSprite {
 }
 
 func (cs *GuiSprite) addImage(file string) {
-	fh, err := os.Open(path.Join("../data/other/", file))
+	fh, err := arkhamassets.Data.Open(path.Join("data/other/", file))
 	if err != nil {
 		panic(err)
 	}

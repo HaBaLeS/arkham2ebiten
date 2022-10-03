@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"ebiten2arkham/gui/font"
 	"ebiten2arkham/renderer"
 	"fmt"
 	"github.com/HaBaLeS/arkham-go/command"
@@ -97,11 +98,11 @@ func (dlg *Dialog) Draw(target *ebiten.Image) {
 	target.DrawImage(dlg.background, op)
 
 	msg := fmt.Sprintf("%s", dlg.question)
-	text.Draw(target, msg, normalFnt, int(dlg.x+170), int(dlg.y+100), colornames.Whitesmoke)
+	text.Draw(target, msg, font.NormalFnt, int(dlg.x+170), int(dlg.y+100), colornames.Whitesmoke)
 
 	for _, b := range dlg.buttons {
 		ebitenutil.DrawRect(target, b.x, b.y, b.w, b.h, colornames.Orange)
-		text.Draw(target, b.text, normalFnt, int(b.x+10), int(b.y+50), colornames.Black)
+		text.Draw(target, b.text, font.NormalFnt, int(b.x+10), int(b.y+50), colornames.Black)
 	}
 
 	if dlg.card != nil {

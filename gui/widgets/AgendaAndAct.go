@@ -1,6 +1,8 @@
-package gui
+package widgets
 
 import (
+	"ebiten2arkham/gui/button"
+	"ebiten2arkham/gui/font"
 	"ebiten2arkham/renderer"
 	"fmt"
 	"github.com/HaBaLeS/arkham-go/card"
@@ -14,7 +16,7 @@ import (
 type AgendaAndAct struct {
 	currentAgendaCard *card.Agenda
 	currentActCard    *card.Act
-	progressButton    *Button
+	progressButton    *button.Button
 
 	currentAgendaSprite *renderer.CardSprite
 	currentActSprite    *renderer.CardSprite
@@ -40,8 +42,12 @@ func NewAgendaAndAct() *AgendaAndAct {
 	a.currentAgendaSprite.Scale = scale
 	a.currentAgendaSprite.Enable()
 
-	a.progressButton = &Button{
-		a.currentActSprite.X, 200, 150, 30, "Progress Agenda", false,
+	a.progressButton = button.NewButton(a.currentActSprite.X, 200, 30, "Progress Agenda")
+	a.progressButton.DefaultTextColor = colornames.Green
+	a.progressButton.HasBgColor = true
+	a.progressButton.HasFocusColor = true
+	a.progressButton.ButtonClickFunc = func() {
+		command.SendEngineCommand(&command.ProgressActCommand{})
 	}
 
 	return a
@@ -49,13 +55,11 @@ func NewAgendaAndAct() *AgendaAndAct {
 
 func (a *AgendaAndAct) Update(mx, my float64, clicked bool) {
 
-	if a.progressButton.Enabled {
-		if clicked && a.progressButton.Contains(mx, my) {
-			command.SendEngineCommand(&command.ProgressActCommand{})
-		}
-	}
+	a.progressButton.Update()
 
-	a.progressButton.Enabled = a.currentActCard.CanProgress()
+	if a.currentActCard.CanProgress() { //fixme dont call this with 20 fps
+		a.progressButton.Enable()
+	}
 
 }
 
@@ -65,10 +69,10 @@ func (a *AgendaAndAct) Draw(screen *ebiten.Image) {
 	a.progressButton.Draw(screen)
 
 	agendaText := fmt.Sprintf("%s\n %d of %d Doom", a.currentAgendaCard.Name, a.currentAgendaCard.ActiveDoom(), a.currentAgendaCard.Doom)
-	text.Draw(screen, agendaText, normalFnt, int(a.currentAgendaSprite.X), int(a.currentAgendaSprite.Y+150), colornames.Whitesmoke)
+	text.Draw(screen, agendaText, font.NormalFnt, int(a.currentAgendaSprite.X), int(a.currentAgendaSprite.Y+150), colornames.Whitesmoke)
 
 	actText := fmt.Sprintf("%s\n %d of %d Clues", a.currentActCard.Name, a.currentActCard.ActiveClues(), a.currentActCard.Clues)
-	text.Draw(screen, actText, normalFnt, int(a.currentActSprite.X), int(a.currentActSprite.Y+150), colornames.Whitesmoke)
+	text.Draw(screen, actText, font.NormalFnt, int(a.currentActSprite.X), int(a.currentActSprite.Y+150), colornames.Whitesmoke)
 
 }
 

@@ -1,17 +1,17 @@
-package gui
+package font
 
 import (
+	"github.com/HaBaLeS/arkhamassets"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"log"
-	"os"
 )
 
-var normalFnt font.Face
+var NormalFnt font.Face
 
 func InitFonts() {
 
-	fnt, err := os.ReadFile("../data/font/Teutonic.ttf")
+	fnt, err := arkhamassets.Data.ReadFile("data/font/Teutonic.ttf")
 	if err != nil {
 		log.Panicf("Could not Read font %v", err)
 	}
@@ -22,7 +22,7 @@ func InitFonts() {
 	}
 
 	const dpi = 72
-	normalFnt, err = opentype.NewFace(tt, &opentype.FaceOptions{
+	NormalFnt, err = opentype.NewFace(tt, &opentype.FaceOptions{
 		Size:    24,
 		DPI:     dpi,
 		Hinting: font.HintingFull,

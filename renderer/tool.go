@@ -1,15 +1,15 @@
 package renderer
 
 import (
+	"github.com/HaBaLeS/arkhamassets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"log"
-	"os"
 	"path"
 )
 
 func LoadImage(file string) *ebiten.Image {
-	fh, err := os.Open(path.Join("../data/", file))
+	fh, err := arkhamassets.Data.Open(path.Join("data/", file))
 	if err != nil {
 		log.Panicln("Could not load image: %s: %v", file, err)
 	}

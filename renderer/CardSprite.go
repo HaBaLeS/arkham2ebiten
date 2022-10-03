@@ -1,14 +1,15 @@
 package renderer
 
 import (
+	"ebiten2arkham/config"
 	"github.com/HaBaLeS/arkham-go/card"
+	"github.com/HaBaLeS/arkhamassets"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 	"image"
 	"log"
 	"math"
-	"os"
 	"path"
 )
 
@@ -35,7 +36,7 @@ func NewCardSprite(card card.ArkhamCard) *CardSprite {
 }
 
 func (cs *CardSprite) addFront(file string) {
-	fh, err := os.Open(path.Join("../data/leech-img2/", file))
+	fh, err := arkhamassets.Data.Open(path.Join("data/leech-img2/", file))
 	if err != nil {
 		log.Panicf("Could not load: %s. error:%s", file, err)
 	}
@@ -54,7 +55,7 @@ func (cs *CardSprite) addBack(file string) {
 	if file == "" {
 		return
 	}
-	fh, err := os.Open(path.Join("../data/leech-img2/", file))
+	fh, err := arkhamassets.Data.Open(path.Join("data/leech-img2/", file))
 	if err != nil {
 		log.Panicf("Could not load: %s. error:%s", file, err)
 	}
@@ -70,6 +71,7 @@ func (cs *CardSprite) Draw(screen *ebiten.Image) {
 		return
 	}
 	op := &ebiten.DrawImageOptions{}
+	op.Filter = config.Cfg.DefaultFilter
 
 	if cs.card.Base().Tapped {
 		cs.rotation = math.Pi / 2
